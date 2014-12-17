@@ -1,0 +1,64 @@
+Machine Learning Course Project
+========================================================
+
+We begin by readin in the data and viewing the structure of the variables
+
+```{r}
+data <-read.csv("pml-training.csv")
+```
+
+After viewing the variables we see that there are a lot of columns that are N/A and some columns with factor variables with #DIV/0 which are essentially also NA values
+
+```{r}
+str(data)
+```
+
+We want NA strings to be read as NA and want DIV/0 to be also read as NA since it isn't anything except an unusable value so we want to specifiy which which strings we want as NA when we read it in
+
+```{r}
+data <-read.csv("pml-training.csv", na.strings = c("NA", "#DIV/0!") )
+str(data)
+```
+
+Next we want to remove the columns that are pretty much totally NA values since those won't help in our prediction model and we are left with numerical values and our outcome variable. We also remove timestamps values 
+
+```{r, cache=TRUE}
+nacols <- function(dataframe) {
+        colnames(dataframe)[unlist(lapply(dataframe, function(x) any(is.na(x))))]
+}
+NAcols <- nacols(dataframe = data)
+booleanWithoutNAcols <-  !(colnames(data) %in% NAcols)
+dataNoNAs <- data[ , booleanWithoutNAcols]
+dataReduced <- subset(dataNoNAs, select = -c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, new_window, num_window) ) 
+str(dataReduced)
+```
+
+We then create our data partitions for training and testing
+
+```{r, warning=FALSE, cache=TRUE}
+library(caret)
+set.seed(69)
+inTrain <- createDataPartition(dataReduced$classe, p=.7, list=FALSE)
+training <- dataReduced[inTrain, ]
+testing <- dataReduced[-inTrain,]
+dim(training)
+dim(testing)
+```
+
+Next we create our model to predict using random forrest 
+
+```{r, cache=TRUE, warning=FALSE}
+library(randomForest)
+modfit <- randomForest(classe ~., data = training, importance = TRUE, proximity = TRUE)
+modfit
+```
+
+We can now apply our algorithm to the testing set and table the results to see how it did
+
+```{r, warning=FALSE}
+pred <- predict(modfit, newdata = testing)
+testing$classeRight <- pred == testing$classe
+table(pred, testing$classe)
+```
+
+
